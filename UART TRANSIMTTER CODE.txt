@@ -1,0 +1,57 @@
+UART TRANSIMTTER CODE( uart_tx.v)
+
+
+module uart_tx (
+    input wire clk,
+    input wire reset,
+    input wire tx_start,
+    input wire [7:0] tx_data,
+    output reg tx,
+    output reg tx_busy
+);
+
+parameter CLK_FREQ = 50000000;     // 50 MHz
+parameter BAUD_RATE = 9600;
+localparam BAUD_TICK = CLK_FREQ / BAUD_RATE;
+
+reg [15:0] baud_cnt = 0;
+reg [3:0] bit_index = 0;
+reg [9:0] tx_shift = 10'b1111111111;  // Start, data, stop
+reg sending = 0;
+
+always @(posedge clk or posedge reset) begin
+    if (reset) begin
+        tx <= 1;
+        baud_cnt <= 0;
+        bit_index <= 0;
+        sending <= 0;
+        tx_busy <= 0;
+    end else begin
+        if (tx_start && !sending) begin
+            tx_shift <= {1'b1, tx_data, 1'b0};  // stop bit, data, start bit
+            sending <= 1;
+            bit_index <= 0;
+            tx_busy <= 1;
+        end
+
+        if (sending) begin
+            if (baud_cnt == BAUD_TICK - 1) begin
+                baud_cnt <= 0;
+                tx <= tx_shift[bit_index];
+                bit_index <= bit_index + 1;
+                if (bit_index == 9) begin
+                    sending <= 0;
+                    tx_busy <= 0;
+                end
+            end else begin
+                baud_cnt <= baud_cnt + 1;
+            end
+        end else begin
+            tx <= 1;
+        end
+    end
+end
+
+endmodule
+
+

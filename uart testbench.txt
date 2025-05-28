@@ -1,0 +1,67 @@
+`timescale 1ns / 1ps
+
+module uart_tb;
+
+    reg clk = 0;
+    reg reset = 0;
+
+    // TX signals
+    reg tx_start = 0;
+    reg [7:0] tx_data = 8'h00;
+    wire tx;
+    wire tx_busy;
+
+    // RX signals
+    wire [7:0] rx_data;
+    wire rx_ready;
+
+    // Clock generation: 50 MHz
+    always #10 clk = ~clk;  // 20ns period = 50 MHz
+
+    // Instantiate UART Transmitter
+    uart_tx #( .CLK_FREQ(50000000), .BAUD_RATE(9600) ) TX (
+        .clk(clk),
+        .reset(reset),
+        .tx_start(tx_start),
+        .tx_data(tx_data),
+        .tx(tx),
+        .tx_busy(tx_busy)
+    );
+
+    // Instantiate UART Receiver
+    uart_rx #( .CLK_FREQ(50000000), .BAUD_RATE(9600) ) RX (
+        .clk(clk),
+        .reset(reset),
+        .rx(tx),
+        .rx_data(rx_data),
+        .rx_ready(rx_ready)
+    );
+
+    // Test sequence
+    initial begin
+        $display("UART Testbench Started");
+        $dumpfile("uart.vcd");  // For waveform viewing
+        $dumpvars(0, uart_tb);
+
+        // Initialize
+        reset = 1;
+        #100;
+        reset = 0;
+
+        // Transmit byte 0xA5
+        tx_data = 8'hA5;
+        tx_start = 1;
+        #20;   // One clock cycle
+        tx_start = 0;
+
+        // Wait for transmission to complete
+        wait (rx_ready == 1);
+
+        $display("Transmitted: 0x%0h, Received: 0x%0h", tx_data, rx_data);
+
+        // End simulation
+        #1000;
+        $finish;
+    end
+
+endmodule
